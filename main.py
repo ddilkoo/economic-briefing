@@ -19,16 +19,25 @@ for category, url in RSS_URLS:
 
     news = feedparser.parse(url)
 
-    message += f"{category}\n"
+    message += f"{category}\n\n"
 
     for item in news.entries[:3]:
+
         title = item.title
-        link = item.link
 
-        message += f"• {title}\n"
-        message += f"{link}\n\n"
+        # 뉴스 설명 가져오기
+        summary = ""
 
-    message += "-------------------\n"
+        if "summary" in item:
+            summary = item.summary
+
+        # 너무 긴 내용 자르기
+        summary = summary[:200]
+
+        message += f"■ {title}\n"
+        message += f"{summary}\n\n"
+
+    message += "--------------------\n"
 
 
 requests.post(
