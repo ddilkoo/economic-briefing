@@ -1,15 +1,32 @@
+import os
 import requests
 from bs4 import BeautifulSoup
-import re
+from openai import OpenAI
 
 
-# 내가 관심 있는 분야
+# =====================
+# API 설정
+# =====================
+
+client = OpenAI(
+    api_key=os.environ["OPENAI_API_KEY"]
+)
+
+DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
+
+
+# =====================
+# 네이버증권 주요뉴스
+# =====================
+
+NAVER_URL = "https://finance.naver.com/news/mainnews.naver"
+
+
 KEYWORDS = [
     "금리",
     "기준금리",
     "한국은행",
     "연준",
-    "미국 금리",
     "환율",
     "달러",
     "원달러",
@@ -17,7 +34,6 @@ KEYWORDS = [
     "아파트",
     "주택",
     "전세",
-    "증시",
     "코스피",
     "코스닥",
     "나스닥",
@@ -27,23 +43,10 @@ KEYWORDS = [
 ]
 
 
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1534793981769027594/1JxOyILur5MJen6gw4PWgkG-kmTZo8lLrK4uDRIDmvd-_L3oqx7UrRwAqBE4QUL_7DmH"
-
-
-# 네이버증권 주요뉴스
-NAVER_URL = "https://finance.naver.com/news/mainnews.naver"
-
-
-def clean_text(text):
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
-
-
 def get_news():
 
     headers = {
-        "User-Agent": 
-        "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0"
     }
 
     response = requests.get(
@@ -59,70 +62,107 @@ def get_news():
     )
 
 
-    news_list = []
-
-
-    # 뉴스 제목 영역 추출
     articles = soup.select(
         "dd.articleSubject a"
     )
 
 
+    news = []
+
+
     for article in articles:
 
-        title = clean_text(
-            article.text
-        )
-
-        link = (
-            "https://finance.naver.com"
-            + article.get("href")
-        )
+        title = article.text.strip()
 
 
-        # 관심 키워드 검사
         if any(
             keyword in title
             for keyword in KEYWORDS
         ):
-
-            news_list.append(
-                {
-                    "title": title,
-                    "link": link
-                }
-            )
+            news.append(title)
 
 
-    return news_list[:10]
+    return news[:10]
 
 
 
-def send_discord(news):
+# =====================
+# OpenAI 분석
+# =====================
 
-    message = (
-        "📊 오늘의 경제 브리핑\n\n"
+def make_briefing(news):
+
+    news_text = "\n".join(
+        news
     )
 
 
-    if not news:
+    prompt = f"""
+너는 경제 전문 애널리스트다.
 
-        message += (
-            "오늘 관심 분야 뉴스가 없습니다."
-        )
+아래 뉴스 제목을 바탕으로
+오늘 아침 투자자가 읽을 경제 브리핑을 작성해라.
 
-    else:
+조건:
+- 중요한 뉴스만 선별
+- 단순 기사 나열 금지
+- 경제적 의미 설명
+- 금리 영향
+- 환율 영향
+- 주식시장 영향
+- 부동산 영향 포함
 
-        for idx, item in enumerate(news, 1):
+형식:
 
-            message += (
-                f"{idx}. {item['title']}\n"
-            )
+📊 오늘의 경제 브리핑
 
-            message += (
-                f"{item['link']}\n\n"
-            )
+🔥 핵심 이슈
 
+1.
+내용:
+영향:
+
+2.
+내용:
+영향:
+
+
+💰 금리·환율
+
+🏠 부동산
+
+📈 증시 체크포인트
+
+
+뉴스:
+{news_text}
+"""
+
+
+    response = client.chat.completions.create(
+
+        model="gpt-5-mini",
+
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+
+        temperature=0.3
+    )
+
+
+    return response.choices[0].message.content
+
+
+
+# =====================
+# Discord 전송
+# =====================
+
+def send_discord(message):
 
     requests.post(
         DISCORD_WEBHOOK,
@@ -133,6 +173,21 @@ def send_discord(news):
 
 
 
+# =====================
+# 실행
+# =====================
+
 news = get_news()
 
-send_discord(news)
+
+if news:
+
+    briefing = make_briefing(news)
+
+    send_discord(briefing)
+
+else:
+
+    send_discord(
+        "오늘 분석할 경제 뉴스가 없습니다."
+    )
