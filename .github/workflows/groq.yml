@@ -32,4 +32,4 @@ jobs:
 
       - name: Run Groq
         run: |
-          python groq.py
+          python groq_briefing.py
