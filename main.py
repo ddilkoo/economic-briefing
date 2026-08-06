@@ -1,22 +1,27 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from openai import OpenAI
+import google.generativeai as genai
 
 
 # =====================
-# API 설정
+# Gemini 설정
 # =====================
 
-client = OpenAI(
-    api_key=os.environ["OPENAI_API_KEY"]
+genai.configure(
+    api_key=os.environ["GEMINI_API_KEY"]
 )
+
+model = genai.GenerativeModel(
+    "gemini-1.5-flash"
+)
+
 
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 
 # =====================
-# 네이버증권 주요뉴스
+# 네이버증권 뉴스 수집
 # =====================
 
 NAVER_URL = "https://finance.naver.com/news/mainnews.naver"
@@ -49,12 +54,14 @@ def get_news():
         "User-Agent": "Mozilla/5.0"
     }
 
+
     response = requests.get(
         NAVER_URL,
         headers=headers
     )
 
     response.encoding = "euc-kr"
+
 
     soup = BeautifulSoup(
         response.text,
@@ -79,6 +86,7 @@ def get_news():
             keyword in title
             for keyword in KEYWORDS
         ):
+
             news.append(title)
 
 
@@ -87,26 +95,26 @@ def get_news():
 
 
 # =====================
-# OpenAI 분석
+# Gemini 경제 분석
 # =====================
 
 def make_briefing(news):
 
-    news_text = "\n".join(
-        news
-    )
+
+    news_text = "\n".join(news)
 
 
     prompt = f"""
-너는 경제 전문 애널리스트다.
+너는 한국 경제 전문 애널리스트다.
 
-아래 뉴스 제목을 바탕으로
-오늘 아침 투자자가 읽을 경제 브리핑을 작성해라.
+아래 뉴스들을 분석해서
+매일 아침 투자자가 읽는 경제 브리핑을 작성해라.
 
 조건:
-- 중요한 뉴스만 선별
-- 단순 기사 나열 금지
-- 경제적 의미 설명
+
+- 중요한 내용만 선정
+- 뉴스 제목 나열 금지
+- 왜 중요한지 설명
 - 금리 영향
 - 환율 영향
 - 주식시장 영향
@@ -120,11 +128,12 @@ def make_briefing(news):
 
 1.
 내용:
-영향:
+시장 영향:
+
 
 2.
 내용:
-영향:
+시장 영향:
 
 
 💰 금리·환율
@@ -135,26 +144,17 @@ def make_briefing(news):
 
 
 뉴스:
+
 {news_text}
 """
 
 
-    response = client.chat.completions.create(
-
-        model="gpt-5-mini",
-
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-
-        temperature=0.3
+    response = model.generate_content(
+        prompt
     )
 
 
-    return response.choices[0].message.content
+    return response.text
 
 
 
@@ -185,6 +185,7 @@ if news:
     briefing = make_briefing(news)
 
     send_discord(briefing)
+
 
 else:
 
