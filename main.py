@@ -1,19 +1,15 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
 
 
 # =====================
 # Gemini 설정
 # =====================
 
-genai.configure(
+client = genai.Client(
     api_key=os.environ["GEMINI_API_KEY"]
-)
-
-model = genai.GenerativeModel(
-    "gemini-1.5-flash"
 )
 
 
@@ -29,19 +25,16 @@ NAVER_URL = "https://finance.naver.com/news/mainnews.naver"
 
 KEYWORDS = [
     "금리",
-    "기준금리",
     "한국은행",
     "연준",
     "환율",
     "달러",
     "원달러",
     "부동산",
-    "아파트",
     "주택",
     "전세",
     "코스피",
     "코스닥",
-    "나스닥",
     "반도체",
     "삼성전자",
     "하이닉스"
@@ -54,14 +47,12 @@ def get_news():
         "User-Agent": "Mozilla/5.0"
     }
 
-
     response = requests.get(
         NAVER_URL,
         headers=headers
     )
 
     response.encoding = "euc-kr"
-
 
     soup = BeautifulSoup(
         response.text,
@@ -76,17 +67,14 @@ def get_news():
 
     news = []
 
-
     for article in articles:
 
         title = article.text.strip()
-
 
         if any(
             keyword in title
             for keyword in KEYWORDS
         ):
-
             news.append(title)
 
 
@@ -95,11 +83,10 @@ def get_news():
 
 
 # =====================
-# Gemini 경제 분석
+# Gemini 분석
 # =====================
 
 def make_briefing(news):
-
 
     news_text = "\n".join(news)
 
@@ -107,50 +94,36 @@ def make_briefing(news):
     prompt = f"""
 너는 한국 경제 전문 애널리스트다.
 
-아래 뉴스들을 분석해서
-매일 아침 투자자가 읽는 경제 브리핑을 작성해라.
+아래 경제 뉴스 제목을 분석해서
+아침 경제 브리핑을 작성해라.
 
 조건:
-
-- 중요한 내용만 선정
 - 뉴스 제목 나열 금지
-- 왜 중요한지 설명
-- 금리 영향
-- 환율 영향
-- 주식시장 영향
-- 부동산 영향 포함
+- 중요한 이슈만 선정
+- 경제적 의미 설명
+- 투자자 관점 설명
 
-형식:
+반드시 포함:
 
 📊 오늘의 경제 브리핑
 
 🔥 핵심 이슈
 
-1.
-내용:
-시장 영향:
+💰 금리·환율 영향
 
+📈 증시 영향
 
-2.
-내용:
-시장 영향:
-
-
-💰 금리·환율
-
-🏠 부동산
-
-📈 증시 체크포인트
+🏠 부동산 영향
 
 
 뉴스:
-
 {news_text}
 """
 
 
-    response = model.generate_content(
-        prompt
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt
     )
 
 
@@ -185,7 +158,6 @@ if news:
     briefing = make_briefing(news)
 
     send_discord(briefing)
-
 
 else:
 
