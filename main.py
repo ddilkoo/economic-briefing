@@ -1,5 +1,6 @@
 import requests
 import feedparser
+import re
 
 
 RSS_URLS = [
@@ -10,6 +11,16 @@ RSS_URLS = [
 ]
 
 DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1534793981769027594/1JxOyILur5MJen6gw4PWgkG-kmTZo8lLrK4uDRIDmvd-_L3oqx7UrRwAqBE4QUL_7DmH"
+
+
+def clean_text(text):
+    # HTML 태그 제거
+    text = re.sub('<[^<]+?>', '', text)
+
+    # 불필요한 공백 제거
+    text = text.replace("\n", " ")
+
+    return text.strip()
 
 
 message = "📊 오늘의 경제 브리핑\n\n"
@@ -23,19 +34,21 @@ for category, url in RSS_URLS:
 
     for item in news.entries[:3]:
 
-        title = item.title
+        title = clean_text(item.title)
 
-        # 뉴스 설명 가져오기
         summary = ""
 
         if "summary" in item:
-            summary = item.summary
+            summary = clean_text(item.summary)
 
-        # 너무 긴 내용 자르기
-        summary = summary[:200]
+        summary = summary[:250]
 
         message += f"■ {title}\n"
-        message += f"{summary}\n\n"
+        
+        if summary:
+            message += f"{summary}\n\n"
+        else:
+            message += "내용 미제공\n\n"
 
     message += "--------------------\n"
 
