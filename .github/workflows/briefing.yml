@@ -1,27 +1,38 @@
 name: Economic Briefing
 
 on:
-  schedule:
-    - cron: '0 22 * * *'
   workflow_dispatch:
+
+  schedule:
+    - cron: "0 22 * * *"
+
 
 jobs:
   run:
+
     runs-on: ubuntu-latest
 
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+
     steps:
-      - name: Checkout
+
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install packages
+
+      - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
-      - name: Run script
+
+      - name: Run economic briefing
         run: |
           python main.py
