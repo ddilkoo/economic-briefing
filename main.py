@@ -4,10 +4,9 @@ import re
 
 
 RSS_URLS = [
-    ("🇰🇷 국내 경제", "https://news.google.com/rss/search?q=한국경제"),
-    ("🇺🇸 해외 경제", "https://news.google.com/rss/search?q=미국경제"),
-    ("💱 금융시장", "https://news.google.com/rss/search?q=환율+금리"),
-    ("🏠 부동산", "https://news.google.com/rss/search?q=부동산+정책"),
+    ("📈 한국경제", "https://www.hankyung.com/feed/economy"),
+    ("💰 매일경제", "https://www.mk.co.kr/rss/30000001/"),
+    ("📰 연합뉴스 경제", "https://www.yna.co.kr/rss/economy.xml"),
 ]
 
 DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1534793981769027594/1JxOyILur5MJen6gw4PWgkG-kmTZo8lLrK4uDRIDmvd-_L3oqx7UrRwAqBE4QUL_7DmH"
