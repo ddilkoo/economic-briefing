@@ -4,16 +4,11 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 한국시간 오전 07:00 (UTC 22:00)
-    - cron: "0 22 * * *"
-
-    # 한국시간 오후 07:00 (UTC 10:00)
-    - cron: "0 10 * * *"
-
+    # 한국시간 오전 08:45
+    - cron: "45 23 * * *"
 
 jobs:
   run:
-
     runs-on: ubuntu-latest
 
     env:
@@ -21,21 +16,17 @@ jobs:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-
 
       - name: Run python
         run: |
