@@ -1,1 +1,254 @@
+import os
+import requests
+from bs4 import BeautifulSoup
+from groq import Groq
+from datetime import datetime
 
+
+# =====================
+# 환경 설정
+# =====================
+
+client = Groq(
+    api_key=os.environ["GROQ_API_KEY"]
+)
+
+DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK_GROQ"]
+
+
+# =====================
+# 네이버증권 뉴스 페이지
+# =====================
+
+NEWS_PAGES = {
+    "시황·전망": "https://finance.naver.com/news/news_list.naver?mode=LSS3D&section_id=101&section_id2=258&section_id3=401",
+
+    "기업·종목분석": "https://finance.naver.com/news/news_list.naver?mode=LSS3D&section_id=101&section_id2=258&section_id3=402",
+
+    "해외증시": "https://finance.naver.com/news/news_list.naver?mode=LSS3D&section_id=101&section_id2=258&section_id3=403",
+
+    "채권·선물": "https://finance.naver.com/news/news_list.naver?mode=LSS3D&section_id=101&section_id2=258&section_id3=404",
+
+    "공시·메모": "https://finance.naver.com/news/news_list.naver?mode=LSS3D&section_id=101&section_id2=258&section_id3=406",
+
+    "환율": "https://finance.naver.com/news/news_list.naver?mode=LSS3D&section_id=101&section_id2=258&section_id3=429"
+}
+
+
+# =====================
+# 뉴스 수집
+# =====================
+
+def get_news():
+
+    all_news = []
+
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
+    for category, url in NEWS_PAGES.items():
+
+        try:
+
+            response = requests.get(
+                url,
+                headers=headers,
+                timeout=10
+            )
+
+            response.encoding = "euc-kr"
+
+            soup = BeautifulSoup(
+                response.text,
+                "html.parser"
+            )
+
+            articles = soup.select(
+                "dd.articleSubject a"
+            )
+
+            count = 0
+
+            for article in articles:
+
+                title = article.text.strip()
+
+                if title:
+
+                    all_news.append(
+                        f"[{category}] {title}"
+                    )
+
+                    count += 1
+
+                if count >= 50:
+                    break
+
+        except Exception as e:
+
+            print(
+                category,
+                "수집 실패:",
+                e
+            )
+
+    all_news = list(
+        dict.fromkeys(all_news)
+    )
+
+    return all_news
+
+
+# =====================
+# Groq 분석
+# =====================
+
+def make_briefing(news):
+
+    news_text = "\n".join(
+        f"- {item}"
+        for item in news
+    )
+
+    today = datetime.now().strftime(
+        "%Y-%m-%d"
+    )
+
+    prompt = f"""
+
+너는 한국 금융시장 전문 애널리스트다.
+
+오늘 날짜:
+{today}
+
+아래 뉴스는 네이버증권 6개 분야에서 수집한 금융 뉴스다.
+
+목표:
+
+투자자가 아침 5분 안에 읽고
+오늘 시장 방향성을 파악할 수 있는
+"종합 경제 브리핑"을 작성한다.
+
+중요 작성 원칙:
+
+- 기사 제목을 그대로 나열하지 않는다.
+- 반드시 "무슨 일이 발생했는지 + 시장에 어떤 영향을 주는지" 중심으로 작성한다.
+- 사용자가 추가 검색하지 않아도 핵심 내용을 이해할 수 있게 한다.
+- 같은 이슈의 여러 뉴스는 하나로 묶는다.
+- 중요도가 낮은 기사, 반복 기사, 단순 홍보성 기사는 제외한다.
+- 시장 영향력이 큰 순서대로 정리한다.
+- 각 항목은 2~3줄 이내로 작성한다.
+- 긴 리포트처럼 작성하지 않는다.
+- 뉴스 요약이 아니라 투자자 관점의 브리핑으로 작성한다.
+- 분야별 적절한 이모티콘을 사용한다.
+
+반드시 아래 형식을 유지한다.
+
+📊 오늘의 종합 경제 브리핑 (Groq AI)
+
+{today}
+
+🌎 글로벌 시장
+
+📈 국내 증시
+
+🏢 기업·산업
+
+💵 금융시장
+
+💱 환율
+
+📌 주요 공시
+
+⚠️ 오늘 체크 포인트
+
+💡 투자자 시각
+
+긍정 요인:
+-
+
+주의 요인:
+-
+
+한 줄 판단:
+
+분석 대상 뉴스:
+
+{news_text}
+
+"""
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.4,
+        max_tokens=2000
+    )
+
+    return response.choices[0].message.content
+
+
+# =====================
+# Discord 전송
+# =====================
+
+def send_discord(message):
+
+    limit = 1900
+
+    if len(message) > limit:
+
+        message = (
+            message[:limit]
+            +
+            "\n\n(분량 제한으로 일부 생략)"
+        )
+
+    requests.post(
+        DISCORD_WEBHOOK,
+        json={
+            "content": message
+        },
+        timeout=10
+    )
+
+
+# =====================
+# 실행
+# =====================
+
+if __name__ == "__main__":
+
+    print("뉴스 수집 중...")
+
+    news = get_news()
+
+    print(f"수집 기사 수 : {len(news)}")
+
+    if news:
+
+        print("Groq 분석 중...")
+
+        briefing = make_briefing(news)
+
+        print("Discord 전송 중...")
+
+        send_discord(
+            briefing
+        )
+
+        print("완료!")
+
+    else:
+
+        send_discord(
+            "📢 오늘 수집된 금융 뉴스가 없습니다."
+        )
+
+        print("뉴스 없음")
