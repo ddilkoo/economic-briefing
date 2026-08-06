@@ -23,24 +23,6 @@ DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 NAVER_URL = "https://finance.naver.com/news/mainnews.naver"
 
 
-KEYWORDS = [
-    "금리",
-    "한국은행",
-    "연준",
-    "환율",
-    "달러",
-    "원달러",
-    "부동산",
-    "주택",
-    "전세",
-    "코스피",
-    "코스닥",
-    "반도체",
-    "삼성전자",
-    "하이닉스"
-]
-
-
 def get_news():
 
     headers = {
@@ -71,14 +53,10 @@ def get_news():
 
         title = article.text.strip()
 
-        if any(
-            keyword in title
-            for keyword in KEYWORDS
-        ):
             news.append(title)
 
 
-    return news[:10]
+    return news[:100]
 
 
 
